@@ -1,0 +1,13 @@
+flask==3.0.3
+python-dotenv==1.0.1
+
+# 👉 penting: hindari NumPy 2.x
+numpy==1.26.4
+
+# 👉 opencv compatible numpy 1.x
+opencv-python==4.9.0.80
+
+# 👉 PyTorch CPU
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.2.2
+torchvision==0.17.2

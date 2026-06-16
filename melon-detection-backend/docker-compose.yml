@@ -1,0 +1,11 @@
+services:
+  melon-api:
+    build: .
+    container_name: melon-api
+    ports:
+      - "${APP_PORT}:5000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./models:/app/models
