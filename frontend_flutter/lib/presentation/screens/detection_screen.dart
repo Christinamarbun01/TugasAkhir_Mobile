@@ -234,7 +234,193 @@ class _BigSourceButton extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────
+// DETECTION BODY — setelah gambar dipilih
+// ─────────────────────────────────────────────────────────
+class _DetectionBody extends StatelessWidget {
+  final DetectionProvider provider;
+  final bool isDark;
 
+  const _DetectionBody({required this.provider, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Preview gambar (mengisi sisa ruang)
+        Expanded(
+          child: _ImagePreview(provider: provider, isDark: isDark),
+        ),
+
+        // Panel hasil (muncul setelah Cek ditekan)
+        if (provider.hasResult)
+          _ResultPanel(provider: provider, isDark: isDark),
+
+        // Banner error
+        if (provider.errorMessage != null)
+          _ErrorBanner(
+            message: provider.errorMessage!,
+            onDismiss: provider.clearError,
+          ),
+
+        // Action bar: Galeri | Kamera | Cek Melon
+        _ActionBar(provider: provider, isDark: isDark),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// IMAGE PREVIEW + BOUNDING BOX OVERLAY
+// ─────────────────────────────────────────────────────────
+class _ImagePreview extends StatelessWidget {
+  final DetectionProvider provider;
+  final bool isDark;
+
+  const _ImagePreview({required this.provider, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final predictions = provider.result?.predictions ?? [];
+    final hasResult = provider.hasResult;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: hasResult
+              ? AppColors.boxStroke
+              : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+          width: hasResult ? 2 : 1,
+        ),
+        boxShadow: hasResult
+            ? [
+          BoxShadow(
+            color: AppColors.boxStroke.withOpacity(0.18),
+            blurRadius: 16,
+            spreadRadius: 1,
+          )
+        ]
+            : [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.25 : 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              // Gambar
+              Image.file(
+                File(provider.selectedImage!.path),
+                fit: BoxFit.contain,
+              ),
+
+              // Bounding box overlay (muncul setelah ada hasil)
+              if (predictions.isNotEmpty && provider.imageSize != Size.zero)
+                _BoundingBoxOverlay(
+                  predictions: predictions,
+                  originalSize: provider.imageSize,
+                  containerSize: Size(
+                    constraints.maxWidth,
+                    constraints.maxHeight,
+                  ),
+                ),
+
+              // Badge jumlah deteksi di pojok kanan atas
+              if (hasResult)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.55),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: AppColors.boxStroke.withOpacity(0.6)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.check_circle_rounded,
+                            color: AppColors.boxStroke, size: 13),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${predictions.length} terdeteksi',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _BoundingBoxOverlay extends StatelessWidget {
+  final List<Prediction> predictions;
+  final Size originalSize;
+  final Size containerSize;
+
+  const _BoundingBoxOverlay({
+    required this.predictions,
+    required this.originalSize,
+    required this.containerSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final imageAspect = originalSize.width / originalSize.height;
+    final containerAspect = containerSize.width / containerSize.height;
+
+    Size displaySize;
+    Offset offset;
+
+    if (imageAspect > containerAspect) {
+      final w = containerSize.width;
+      final h = w / imageAspect;
+      displaySize = Size(w, h);
+      offset = Offset(0, (containerSize.height - h) / 2);
+    } else {
+      final h = containerSize.height;
+      final w = h * imageAspect;
+      displaySize = Size(w, h);
+      offset = Offset((containerSize.width - w) / 2, 0);
+    }
+
+    return Positioned(
+      left: offset.dx,
+      top: offset.dy,
+      width: displaySize.width,
+      height: displaySize.height,
+      child: CustomPaint(
+        painter: BoundingBoxPainter(
+          predictions: predictions,
+          originalImageSize: originalSize,
+          displaySize: displaySize,
+          isDarkMode: isDark,
+        ),
+      ),
+    );
+  }
+}
 
 // ─────────────────────────────────────────────────────────
 // ACTION BAR — Galeri | Kamera | [Cek Melon]
